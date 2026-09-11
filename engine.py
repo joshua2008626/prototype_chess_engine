@@ -26,6 +26,8 @@ KNIGHT_TABLE = [
     -10,-5,-5,-5,-5,-5,-5,-10
 ]
 
+nodes_visited = 0
+
 def evaluate_board(board):
     if board.is_checkmate():
         return -99999 if board.turn else 99999
@@ -52,7 +54,9 @@ def evaluate_board(board):
     return total_evaluation if board.turn == chess.WHITE else -total_evaluation
 
 def alpha_beta(board, depth, alpha, beta, maximizing_player):
+    global nodes_visited
     if depth == 0 or board.is_game_over():
+        nodes_visited += 1
         return evaluate_board(board), None
 
     best_move = None
@@ -70,7 +74,7 @@ def alpha_beta(board, depth, alpha, beta, maximizing_player):
                 best_move = move
             alpha = max(alpha, eval)
             if beta <= alpha:
-                break
+                break # Alpha-beta pruning cutoff!
         return max_eval, best_move
     else:
         min_eval = float('inf')
@@ -83,11 +87,14 @@ def alpha_beta(board, depth, alpha, beta, maximizing_player):
                 best_move = move
             beta = min(beta, eval)
             if beta <= alpha:
-                break
+                break # Alpha-beta pruning cutoff!
         return min_eval, best_move
 
 @app.route('/move', methods=['POST'])
 def make_move():
+    global nodes_visited
+    nodes_visited = 0
+    
     data = request.json
     fen = data.get('fen')
     board = chess.Board(fen)
@@ -95,13 +102,23 @@ def make_move():
     if board.is_game_over():
         return jsonify({'error': 'Game over'})
 
-    _, best_move = alpha_beta(board, depth=3, alpha=-float('inf'), beta=float('inf'), maximizing_player=True)
+    start_time = time.time()
+    # UPGRADED TO DEPTH 4 SEARCH
+    best_eval, best_move = alpha_beta(board, depth=4, alpha=-float('inf'), beta=float('inf'), maximizing_player=True)
+    elapsed = round(time.time() - start_time, 3)
     
     if best_move:
         board.push(best_move)
-        return jsonify({'best_move': best_move.uci(), 'fen': board.fen()})
+        return jsonify({
+            'best_move': best_move.uci(), 
+            'fen': board.fen(),
+            'eval': best_eval,
+            'nodes': nodes_visited,
+            'time': elapsed
+        })
     
     return jsonify({'error': 'No legal moves found'})
 
 if __name__ == '__main__':
+    print("--- PULSE ENGINE 4-PLY WEB SERVER RUNNING ---")
     app.run(port=5000)
