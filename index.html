@@ -2,26 +2,43 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pulse Chess Engine</title>
+    <title>Pulse Chess Engine - Minimax Visualizer</title>
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     
     <style>
-        body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; margin-top: 30px; }
-        #board { width: 400px; margin: 20px auto; }
-        h1 { color: #4CAF50; }
-        #status { font-size: 20px; font-weight: bold; margin-top: 15px; color: #ffeb3b; }
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; }
+        h1 { color: #4CAF50; text-align: center; }
+        .main-container { display: flex; justify-content: center; gap: 30px; align-items: flex-start; flex-wrap: wrap; margin-top: 20px; }
+        #board { width: 400px; }
+        .panel { background: #1e1e1e; border: 1px solid #333; padding: 20px; border-radius: 8px; width: 350px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        h3 { margin-top: 0; color: #ffeb3b; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        #status { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #ffeb3b; text-align: center; }
+        .log-line { font-family: monospace; font-size: 13px; color: #b0bec5; margin: 6px 0; background: #262626; padding: 6px; border-radius: 4px; }
+        .highlight { color: #4CAF50; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>⚡ Pulse Chess Engine ⚡</h1>
-    <p>Play against your custom Python AI!</p>
+    <h1>⚡ Pulse Chess Engine (4-Ply Minimax) ⚡</h1>
     
-    <div id="board"></div>
-    <div id="status">Your turn (White)</div>
+    <div class="main-container">
+        <!-- Left: Chessboard -->
+        <div>
+            <div id="board"></div>
+            <div id="status">Your turn (White)</div>
+        </div>
+
+        <!-- Right: Minimax Live Analytics Panel -->
+        <div class="panel">
+            <h3>🧠 Minimax / Alpha-Beta Log</h3>
+            <div id="minimax-logs">
+                <div class="log-line">Waiting for first move...</div>
+            </div>
+        </div>
+    </div>
 
     <script>
         var board = null;
@@ -34,7 +51,8 @@
         function makeEngineMove() {
             if (game.game_over()) return;
 
-            $('#status').text("Pulse is thinking...");
+            $('#status').text("Pulse is thinking (Depth 4)...");
+            $('#minimax-logs').prepend(`<div class="log-line">🔍 Searching depth 4 tree with Alpha-Beta...</div>`);
 
             $.ajax({
                 url: 'http://127.0.0.1:5000/move',
@@ -50,6 +68,16 @@
                         game.move({ from: f, to: t, promotion: promo });
                         board.position(game.fen());
                         updateStatus();
+
+                        // Log the Minimax stats on the right panel
+                        let logHtml = `
+                            <div class="log-line">🤖 <b>Engine Played:</b> <span class="highlight">${response.best_move}</span></div>
+                            <div class="log-line">📊 <b>Board Score:</b> ${response.eval} cp</div>
+                            <div class="log-line">⚡ <b>Nodes Searched:</b> ${response.nodes}</div>
+                            <div class="log-line">⏱️ <b>Calculation Time:</b> ${response.time}s</div>
+                            <hr style="border-color: #333;">
+                        `;
+                        $('#minimax-logs').prepend(logHtml);
                     }
                 },
                 error: function() {
@@ -59,14 +87,12 @@
         }
 
         function onDrop (source, target) {
-            // Attempt the move in chess.js
             var move = game.move({
                 from: source,
                 to: target,
                 promotion: 'q' 
             });
 
-            // If the move is illegal, reject it, display text, and snap back
             if (move === null) {
                 $('#status').text("❌ Illegal move! Try again.");
                 return 'snap';
