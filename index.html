@@ -59,13 +59,18 @@
         }
 
         function onDrop (source, target) {
+            // Attempt the move in chess.js
             var move = game.move({
                 from: source,
                 to: target,
                 promotion: 'q' 
             });
 
-            if (move === null) return 'snap';
+            // If the move is illegal, reject it, display text, and snap back
+            if (move === null) {
+                $('#status').text("❌ Illegal move! Try again.");
+                return 'snap';
+            }
 
             updateStatus();
 
@@ -100,7 +105,6 @@
             position: 'start',
             onDragStart: onDragStart,
             onDrop: onDrop,
-            // FIX: Using the official direct image server path for pieces
             pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
         };
 
